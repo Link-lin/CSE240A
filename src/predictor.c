@@ -11,9 +11,12 @@
 //
 // TODO:Student Information
 //
-const char *studentName = "NAME";
-const char *studentID   = "PID";
-const char *email       = "EMAIL";
+const char *studentName = "Link Lin";
+const char *studentID   = "A13817414";
+const char *email       = "yul065@ucsd.edu";
+const char *studentName2= "Tianyi Shan";
+const char *studentID2  = "";
+const char *email2      = "tshan@ucsd.edu";
 
 //------------------------------------//
 //      Predictor Configuration       //
@@ -88,4 +91,5 @@ train_predictor(uint32_t pc, uint8_t outcome)
   //
   //TODO: Implement Predictor training
   //
+
 }
