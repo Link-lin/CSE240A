@@ -6,6 +6,7 @@
 //  described in the README                               //
 //========================================================//
 #include <stdio.h>
+#include <string.h>
 #include "predictor.h"
 
 //
@@ -54,6 +55,21 @@ void init_predictor()
   //
   //TODO: Initialize Branch Predictor Data Structures
   //
+  switch (bpType){
+    case STATIC:
+      break;
+    case GSHARE:
+      gHistory = NOTTAKEN;
+      // Set up BHT table
+      int tableSize = 1 << ghistoryBits;
+      // printf("TableSize: %d\n",tableSize);
+      // Initialize the BHT to WN
+      gshareBHT = malloc(tableSize * sizeof(uint8_t));
+      memset(gshareBHT, WN, tableSize * sizeof(uint8_t));
+      break;
+    default:
+      break;
+  }
 }
 
 // This is the method for gshare predict
@@ -63,11 +79,15 @@ void init_predictor()
 uint8_t gshare_predict(uint32_t pc)
 {
   // Get the index into the BHT
-  uint32_t index = gHistory ^ (pc & (1 << ghistoryBits - 1));
+  //uint32_t index = gHistory ^ (pc & ((1 << ghistoryBits) - 1));
+  uint32_t index = (gHistory ^ pc) & ((1 << ghistoryBits) - 1);
   // previous state of the branch (can be SN, WN, WT, ST)
   uint8_t p_state = gshareBHT[index];
-  if (p_state == WT || p_state == ST)
+  //printf(" gHistory: %d ",gHistory);
+  //printf(" p_state: %d ",p_state);
+  if (p_state == WT || p_state == ST){
     return TAKEN;
+  }
   return NOTTAKEN;
 }
 
@@ -81,6 +101,7 @@ make_prediction(uint32_t pc)
   //
   //TODO: Implement prediction scheme
   //
+  //printf("pc: %d ", pc);
 
   // Make a prediction based on the bpType
   switch (bpType)
@@ -88,12 +109,7 @@ make_prediction(uint32_t pc)
   case STATIC:
     return TAKEN;
   case GSHARE:
-    gHistory = NOTTAKEN;
-    // Set up BHT table
-    int tableSize = 1 << ghistoryBits;
-    // Initialize the BHT to WN
-    gshareBHT = malloc(tableSize * sizeof(uint8_t));
-    memset(gshareBHT, WN, tableSize * sizeof(uint8_t));
+    
     // Everything in the gshareBHT should be 1 at the point
     // for(int i = 0; i < tableSize; i++){
     //   printf("%d\n", gshareBHT[i]);
@@ -118,24 +134,31 @@ void train_predictor(uint32_t pc, uint8_t outcome)
   //
   //TODO: Implement Predictor training
   //
-  switch (bpType)
-  {
-  case STATIC:
-    break;
-  case GSHARE:
-    // update G-share based on State machine
-    // Get the previous state
-    uint32_t index = gHistory ^ (pc & (1 << ghistoryBits - 1));
-    uint8_t *p_state = gshareBHT[index];
-    if (outcome && *p_state != ST)
-    {
-      *p_state += 1;
+  switch (bpType) {
+    case STATIC:{
+      break;
     }
-    else if (outcome == NOTTAKEN && p_state != SN)
-    {
-      *p_state -= 1;
+    case GSHARE:{
+      // update G-share based on State machine
+      // Get the previous state
+      uint32_t index = (gHistory ^ pc) & ((1 << ghistoryBits) - 1);
+      //printf("test: %d ", (pc & (1 << ghistoryBits)-1));
+      //printf(" index : %d", index);
+      //printf(" outcome: %d\n", outcome);
+      uint8_t *p_state = &gshareBHT[index];
+      if (outcome && *p_state != ST) {
+        *p_state += 1;
+      }
+      else if (outcome == NOTTAKEN && p_state != SN) {
+        *p_state -= 1;
+      }
+      // This is shifting left 1 
+      gHistory <<= 1;
+      // add put the new history to the least significant bit
+      gHistory += outcome;
+      break;
     }
-  default:
-    break;
+    default:
+      break;
   }
 }
