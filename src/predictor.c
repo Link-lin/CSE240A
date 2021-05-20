@@ -40,6 +40,9 @@ uint32_t *localHT;    // Local history table
 uint8_t *localPT;     // Local prediction table
 uint8_t *choiceTable; // Choice prediction table
 
+uint8_t localResult;  // Local prediction result
+uint8_t globalResult; // Global prediction result
+
 //------------------------------------//
 //      Predictor Data Structures     //
 //------------------------------------//
@@ -128,12 +131,14 @@ uint8_t tournament_predict(uint32_t pc){
     // get local history predict
     uint32_t LHTIndex = pc & ((1 << pcIndexBits) -1);
     // would be looking silimiar to  001101 used as index on Local Prediction Table
-    uint32_t localHistory = localHT[LHTIndex];
-    uint8_t localPredict = localPT[localHistory];
+    uint32_t LPTIndex = localHT[LHTIndex] & ((1 << lhistoryBits)-1);
 
+    uint8_t localPredict = localPT[LPTIndex];
+    localResult = convert_state_to_result(localPredict);
     // get global history predict
     uint32_t index = gHistory & ((1 << ghistoryBits) - 1);
     uint8_t globalPredict = gshareBHT[index];  
+    globalResult = convert_state_to_result(globalPredict);
 
     // Choose based on choice prediction table
     uint8_t choicePredict = choiceTable[index];
@@ -141,9 +146,9 @@ uint8_t tournament_predict(uint32_t pc){
 
     // TODO changing the order may get different result
     if(selectResult == SELECTG){
-      return convert_state_to_result(localPredict);
+      return globalResult;
     }
-    return convert_state_to_result(globalPredict);
+    return localResult;
 }
 
 // Make a prediction for conditional branch instruction at PC 'pc'
@@ -212,7 +217,51 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       gHistory += outcome;
       break;
     }
-    case TOURNAMENT:
+    case TOURNAMENT:{
+      // shift in local & global history register
+
+      // update local history predict
+      uint32_t LHTIndex = pc & ((1 << pcIndexBits) -1);
+      uint32_t *LPTIndex = &localHT[LHTIndex];
+
+      // previous LPT result
+      uint8_t *p_LPT_result = &localPT[*LPTIndex];
+      if (outcome && *p_LPT_result != ST) {
+        *p_LPT_result += 1;
+      }
+      else if (outcome == NOTTAKEN && p_LPT_result != SN) {
+        *p_LPT_result -= 1;
+      }
+      // Update LocalPrediction Table Index 
+      *LPTIndex <<= 1;
+      *LPTIndex += outcome;
+
+      // update global history predict
+      uint32_t index = gHistory & ((1 << ghistoryBits) - 1);
+      uint8_t *p_state = &gshareBHT[index];
+      if (outcome && *p_state != ST) {
+        *p_state += 1;
+      }
+      else if (outcome == NOTTAKEN && p_state != SN) {
+        *p_state -= 1;
+      }
+      // This is shifting left 1 
+      gHistory <<= 1;
+      // add put the new history to the least significant bit
+      gHistory += outcome;
+
+      // update choice table only when the result mismatch
+      uint8_t *p_choice = &choiceTable[index];
+      if(localResult != globalResult){
+        if(localResult == outcome && *p_choice != SL){
+          *p_choice += 1; 
+        }
+        else if(globalResult == outcome && *p_choice !=SG){
+          *p_choice -= 1;
+        }
+      }
+      break;
+    }
     default:
       break;
   }
