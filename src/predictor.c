@@ -36,6 +36,10 @@ int verbose;
 uint8_t *gshareBHT; //gshare Branch Prediction Table
 uint32_t gHistory;
 
+uint32_t *localHT;    // Local history table
+uint8_t *localPT;     // Local prediction table
+uint8_t *choiceTable; // Choice prediction table
+
 //------------------------------------//
 //      Predictor Data Structures     //
 //------------------------------------//
@@ -58,15 +62,38 @@ void init_predictor()
   switch (bpType){
     case STATIC:
       break;
-    case GSHARE:
+    case GSHARE:{
       gHistory = NOTTAKEN;
       // Set up BHT table
-      int tableSize = 1 << ghistoryBits;
+      int gTableSize = 1 << ghistoryBits;
       // printf("TableSize: %d\n",tableSize);
       // Initialize the BHT to WN
-      gshareBHT = malloc(tableSize * sizeof(uint8_t));
-      memset(gshareBHT, WN, tableSize * sizeof(uint8_t));
+      gshareBHT = malloc(gTableSize * sizeof(uint8_t));
+      memset(gshareBHT, WN, gTableSize * sizeof(uint8_t));
       break;
+    }
+    case TOURNAMENT:{
+      gHistory = NOTTAKEN;
+      // Set up BHT talbe
+      int gTableSize = 1 << ghistoryBits;
+      gshareBHT = malloc(gTableSize* sizeof(uint8_t));
+      memset(gshareBHT, WN, gTableSize * sizeof(uint8_t));
+
+      // Set up local History table 
+      int LHTSize = 1 << pcIndexBits;
+      localHT = malloc(LHTSize * sizeof(uint32_t));
+      memset(localHT, 0, LHTSize * sizeof(uint32_t));
+
+      // Set up local prediction table
+      int LPTSize = 1 << lhistoryBits;
+      localPT = malloc(LPTSize * sizeof(uint8_t));
+      memset(localPT, WN, LPTSize * sizeof(uint8_t));
+
+      // Set up choice prediction table
+      int CPTSize = 1 << ghistoryBits;
+      choiceTable = malloc(CPTSize * sizeof(uint8_t));
+      memset(choiceTable, WG, CPTSize*sizeof(uint8_t));
+    }
     default:
       break;
   }
@@ -135,9 +162,8 @@ void train_predictor(uint32_t pc, uint8_t outcome)
   //TODO: Implement Predictor training
   //
   switch (bpType) {
-    case STATIC:{
+    case STATIC:
       break;
-    }
     case GSHARE:{
       // update G-share based on State machine
       // Get the previous state
@@ -158,6 +184,7 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       gHistory += outcome;
       break;
     }
+    case TOURNAMENT:
     default:
       break;
   }
