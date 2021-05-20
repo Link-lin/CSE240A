@@ -36,6 +36,7 @@ int verbose;
 uint8_t *gshareBHT; //gshare Branch Prediction Table
 uint32_t gHistory;
 
+uint8_t *globalPT;    // Global prediction table
 uint32_t *localHT;    // Local history table
 uint8_t *localPT;     // Local prediction table
 uint8_t *choiceTable; // Choice prediction table
@@ -87,8 +88,8 @@ void init_predictor()
       gHistory = NOTTAKEN;
       // Set up BHT talbe
       int gTableSize = 1 << ghistoryBits;
-      gshareBHT = malloc(gTableSize* sizeof(uint8_t));
-      memset(gshareBHT, WN, gTableSize * sizeof(uint8_t));
+      globalPT= malloc(gTableSize* sizeof(uint8_t));
+      memset(globalPT, WN, gTableSize * sizeof(uint8_t));
 
       // Set up local History table 
       int LHTSize = 1 << pcIndexBits;
@@ -104,6 +105,7 @@ void init_predictor()
       int CPTSize = 1 << ghistoryBits;
       choiceTable = malloc(CPTSize * sizeof(uint8_t));
       memset(choiceTable, WG, CPTSize*sizeof(uint8_t));
+      break;
     }
     default:
       break;
@@ -137,17 +139,19 @@ uint8_t tournament_predict(uint32_t pc){
     localResult = convert_state_to_result(localPredict);
     // get global history predict
     uint32_t index = gHistory & ((1 << ghistoryBits) - 1);
-    uint8_t globalPredict = gshareBHT[index];  
+    uint8_t globalPredict = globalPT[index];  
     globalResult = convert_state_to_result(globalPredict);
 
     // Choose based on choice prediction table
     uint8_t choicePredict = choiceTable[index];
     uint8_t selectResult = convert_state_to_result(choicePredict);
 
+    
     // TODO changing the order may get different result
     if(selectResult == SELECTG){
       return globalResult;
     }
+
     return localResult;
 }
 
@@ -224,6 +228,9 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       uint32_t LHTIndex = pc & ((1 << pcIndexBits) -1);
       uint32_t *LPTIndex = &localHT[LHTIndex];
 
+      printf("LHTIndex %d, LPTIndex: %d\n", LHTIndex, *LPTIndex);
+      fflush(stdout);
+
       // previous LPT result
       uint8_t *p_LPT_result = &localPT[*LPTIndex];
       if (outcome && *p_LPT_result != ST) {
@@ -238,7 +245,7 @@ void train_predictor(uint32_t pc, uint8_t outcome)
 
       // update global history predict
       uint32_t index = gHistory & ((1 << ghistoryBits) - 1);
-      uint8_t *p_state = &gshareBHT[index];
+      uint8_t *p_state = &globalPT[index];
       if (outcome && *p_state != ST) {
         *p_state += 1;
       }
