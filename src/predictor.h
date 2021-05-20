@@ -24,6 +24,8 @@ extern const char *email;
 //------------------------------------//
 #define NOTTAKEN  0
 #define TAKEN     1
+#define SELECTG   0
+#define SELECTL   1
 
 // The Different Predictor Types
 #define STATIC      0
@@ -41,7 +43,7 @@ extern const char *bpName[];
 #define SG 0            // choice predictor, strong global
 #define WG 1            // choice predictor, weak global
 #define WL 2            // choice predictor, weak local 
-#define SL 2            // choice predictor, strong local 
+#define SL 3            // choice predictor, strong local 
 
 //------------------------------------//
 //      Predictor Configuration       //

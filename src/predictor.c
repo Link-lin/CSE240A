@@ -52,6 +52,14 @@ uint8_t *choiceTable; // Choice prediction table
 //        Predictor Functions         //
 //------------------------------------//
 
+uint8_t convert_state_to_result(uint8_t st){
+  // Changing the order results in different number???
+  if(st == 2 || st == 3){
+    return 1;
+  }
+  return 0;
+}
+
 // Initialize the predictor
 //
 void init_predictor()
@@ -112,10 +120,30 @@ uint8_t gshare_predict(uint32_t pc)
   uint8_t p_state = gshareBHT[index];
   //printf(" gHistory: %d ",gHistory);
   //printf(" p_state: %d ",p_state);
-  if (p_state == WT || p_state == ST){
-    return TAKEN;
-  }
-  return NOTTAKEN;
+  return convert_state_to_result(p_state);
+}
+
+// This is the method for tournament predict following ALPHA 21264
+uint8_t tournament_predict(uint32_t pc){
+    // get local history predict
+    uint32_t LHTIndex = pc & ((1 << pcIndexBits) -1);
+    // would be looking silimiar to  001101 used as index on Local Prediction Table
+    uint32_t localHistory = localHT[LHTIndex];
+    uint8_t localPredict = localPT[localHistory];
+
+    // get global history predict
+    uint32_t index = gHistory & ((1 << ghistoryBits) - 1);
+    uint8_t globalPredict = gshareBHT[index];  
+
+    // Choose based on choice prediction table
+    uint8_t choicePredict = choiceTable[index];
+    uint8_t selectResult = convert_state_to_result(choicePredict);
+
+    // TODO changing the order may get different result
+    if(selectResult == SELECTG){
+      return convert_state_to_result(localPredict);
+    }
+    return convert_state_to_result(globalPredict);
 }
 
 // Make a prediction for conditional branch instruction at PC 'pc'
@@ -136,13 +164,13 @@ make_prediction(uint32_t pc)
   case STATIC:
     return TAKEN;
   case GSHARE:
-    
     // Everything in the gshareBHT should be 1 at the point
     // for(int i = 0; i < tableSize; i++){
     //   printf("%d\n", gshareBHT[i]);
     // }
     return gshare_predict(pc);
   case TOURNAMENT:
+    return tournament_predict(pc);
   case CUSTOM:
   default:
     break;
