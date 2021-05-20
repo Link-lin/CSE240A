@@ -227,9 +227,10 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       // update local history predict
       uint32_t LHTIndex = pc & ((1 << pcIndexBits) -1);
       uint32_t *LPTIndex = &localHT[LHTIndex];
+      *LPTIndex &= ((1<<lhistoryBits)-1);
 
-      printf("LHTIndex %d, LPTIndex: %d\n", LHTIndex, *LPTIndex);
-      fflush(stdout);
+      //printf("LHTIndex %d, LPTIndex: %d\n", LHTIndex, *LPTIndex);
+      //fflush(stdout);
 
       // previous LPT result
       uint8_t *p_LPT_result = &localPT[*LPTIndex];
