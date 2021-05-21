@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  branchpredictor:
+    build: .
+    privileged: true
+    volumes:
+      - ${src}:/CSE240A/src
+      - ${traces}:/CSE240A/traces
+      - ${docker}:/CSE240A/docker
+
+    command: /CSE240A/docker/run.sh 
+   
+    tty: true
+    stdin_open: true
