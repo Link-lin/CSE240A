@@ -141,17 +141,13 @@ uint8_t tournament_predict(uint32_t pc){
     uint32_t index = gHistory & ((1 << ghistoryBits) - 1);
     uint8_t globalPredict = globalPT[index];  
     globalResult = convert_state_to_result(globalPredict);
-
     // Choose based on choice prediction table
     uint8_t choicePredict = choiceTable[index];
     uint8_t selectResult = convert_state_to_result(choicePredict);
-
-    
     // TODO changing the order may get different result
     if(selectResult == SELECTG){
       return globalResult;
     }
-
     return localResult;
 }
 
@@ -212,7 +208,7 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       if (outcome && *p_state != ST) {
         *p_state += 1;
       }
-      else if (outcome == NOTTAKEN && p_state != SN) {
+      else if (outcome == NOTTAKEN && *p_state != SN) {
         *p_state -= 1;
       }
       // This is shifting left 1 
@@ -227,14 +223,14 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       // update local history predict
       uint32_t LHTIndex = pc & ((1 << pcIndexBits) -1);
       uint32_t *LPTIndex = &localHT[LHTIndex];
-      *LPTIndex &= ((1<<lhistoryBits)-1);
+      *LPTIndex &= (1<<lhistoryBits)-1;
 
       //printf("LHTIndex %d, LPTIndex: %d\n", LHTIndex, *LPTIndex);
       //fflush(stdout);
 
       // previous LPT result
       uint8_t *p_LPT_result = &localPT[*LPTIndex];
-      if (outcome && *p_LPT_result != ST) {
+      if (outcome == TAKEN && *p_LPT_result != ST) {
         *p_LPT_result += 1;
       }
       else if (outcome == NOTTAKEN && p_LPT_result != SN) {
@@ -247,7 +243,7 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       // update global history predict
       uint32_t index = gHistory & ((1 << ghistoryBits) - 1);
       uint8_t *p_state = &globalPT[index];
-      if (outcome && *p_state != ST) {
+      if (outcome == TAKEN && *p_state != ST) {
         *p_state += 1;
       }
       else if (outcome == NOTTAKEN && p_state != SN) {
@@ -261,11 +257,11 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       // update choice table only when the result mismatch
       uint8_t *p_choice = &choiceTable[index];
       if(localResult != globalResult){
-        if(localResult == outcome && *p_choice != SL){
-          *p_choice += 1; 
-        }
-        else if(globalResult == outcome && *p_choice !=SG){
+        if(globalResult == outcome && *p_choice !=SG){
           *p_choice -= 1;
+        }
+        else if(localResult == outcome && *p_choice != SL){
+          *p_choice += 1; 
         }
       }
       break;
