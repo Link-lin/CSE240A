@@ -40,10 +40,10 @@ extern const char *bpName[];
 #define WT  2			// predict T, weak taken
 #define ST  3			// predict T, strong taken
 
-#define SG 0            // choice predictor, strong global
-#define WG 1            // choice predictor, weak global
-#define WL 2            // choice predictor, weak local 
-#define SL 3            // choice predictor, strong local 
+#define SG  0           // choice predictor, strong global
+#define WG  1           // choice predictor, weak global
+#define WL  2           // choice predictor, weak local 
+#define SL  3           // choice predictor, strong local 
 
 //------------------------------------//
 //      Predictor Configuration       //

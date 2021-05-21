@@ -58,10 +58,12 @@ uint8_t globalResult; // Global prediction result
 
 uint8_t convert_state_to_result(uint8_t st){
   // Changing the order results in different number???
-  if(st == 2 || st == 3){
+  if(st == 1 || st == 0){
+    return 0;
+  }
+  else{
     return 1;
   }
-  return 0;
 }
 
 // Initialize the predictor
@@ -95,11 +97,13 @@ void init_predictor()
       int LHTSize = 1 << pcIndexBits;
       localHT = malloc(LHTSize * sizeof(uint32_t));
       memset(localHT, 0, LHTSize * sizeof(uint32_t));
+      
 
       // Set up local prediction table
       int LPTSize = 1 << lhistoryBits;
       localPT = malloc(LPTSize * sizeof(uint8_t));
       memset(localPT, WN, LPTSize * sizeof(uint8_t));
+      
 
       // Set up choice prediction table
       int CPTSize = 1 << ghistoryBits;
@@ -144,11 +148,10 @@ uint8_t tournament_predict(uint32_t pc){
     // Choose based on choice prediction table
     uint8_t choicePredict = choiceTable[index];
     uint8_t selectResult = convert_state_to_result(choicePredict);
+    //uint8_t selectResult = (choicePredict == SL || choicePredict == WL) ? SELECTL : SELECTG;
+    //printf("localPredict: %d, localRe: %d, globalPredict: %d, globalRe: %d, selectResult: %d\n",localPredict, localResult,globalPredict, globalResult, selectResult);
     // TODO changing the order may get different result
-    if(selectResult == SELECTG){
-      return globalResult;
-    }
-    return localResult;
+    return selectResult ==SELECTG ? globalResult : localResult;
 }
 
 // Make a prediction for conditional branch instruction at PC 'pc'
@@ -224,16 +227,15 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       uint32_t LHTIndex = pc & ((1 << pcIndexBits) -1);
       uint32_t *LPTIndex = &localHT[LHTIndex];
       *LPTIndex &= (1<<lhistoryBits)-1;
-
       //printf("LHTIndex %d, LPTIndex: %d\n", LHTIndex, *LPTIndex);
       //fflush(stdout);
-
       // previous LPT result
       uint8_t *p_LPT_result = &localPT[*LPTIndex];
+      //printf("pLPT result: %d, ", *p_LPT_result);
       if (outcome == TAKEN && *p_LPT_result != ST) {
         *p_LPT_result += 1;
       }
-      else if (outcome == NOTTAKEN && p_LPT_result != SN) {
+      if (outcome == NOTTAKEN && *p_LPT_result != SN) {
         *p_LPT_result -= 1;
       }
       // Update LocalPrediction Table Index 
@@ -243,10 +245,11 @@ void train_predictor(uint32_t pc, uint8_t outcome)
       // update global history predict
       uint32_t index = gHistory & ((1 << ghistoryBits) - 1);
       uint8_t *p_state = &globalPT[index];
+      //printf("pstate: %d \n", *p_state);
       if (outcome == TAKEN && *p_state != ST) {
         *p_state += 1;
       }
-      else if (outcome == NOTTAKEN && p_state != SN) {
+      else if (outcome == NOTTAKEN && *p_state != SN) {
         *p_state -= 1;
       }
       // This is shifting left 1 

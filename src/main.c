@@ -102,9 +102,6 @@ main(int argc, char *argv[])
     }
   }
 
-  printf("%d", bpType);
-  fflush(stdout);
-
   // Initialize the predictor
   init_predictor();
 
