@@ -7,6 +7,7 @@
 //========================================================//
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include "predictor.h"
 
 //
@@ -16,7 +17,7 @@ const char *studentName = "Link Lin";
 const char *studentID = "A13817414";
 const char *email = "yul065@ucsd.edu";
 const char *studentName2 = "Tianyi Shan";
-const char *studentID2 = "";
+const char *studentID2 = "A53313140";
 const char *email2 = "tshan@ucsd.edu";
 
 //------------------------------------//
@@ -33,6 +34,15 @@ int pcIndexBits;  // Number of bits used for PC index
 int bpType;       // Branch Prediction Type
 int verbose;
 
+
+
+//------------------------------------//
+//      Predictor Data Structures     //
+//------------------------------------//
+
+//
+//TODO: Add your own Branch Predictor data structures here
+//
 uint8_t *gshareBHT; //gshare Branch Prediction Table
 uint32_t gHistory;
 
@@ -44,13 +54,11 @@ uint8_t *choiceTable; // Choice prediction table
 uint8_t localResult;  // Local prediction result
 uint8_t globalResult; // Global prediction result
 
-//------------------------------------//
-//      Predictor Data Structures     //
-//------------------------------------//
+int32_t ** customWT; //custom weight table 
+int32_t threshold;  // [1.93h + 14]
+int32_t y; 
 
-//
-//TODO: Add your own Branch Predictor data structures here
-//
+
 
 //------------------------------------//
 //        Predictor Functions         //
@@ -111,6 +119,26 @@ void init_predictor()
       memset(choiceTable, WG, CPTSize*sizeof(uint8_t));
       break;
     }
+    case CUSTOM:{
+      gHistory = NOTTAKEN;
+      // Set up weight table
+      int gTableSize = 1 << ghistoryBits;
+
+      customWT = malloc(gTableSize * sizeof(int32_t *));
+      for (int i = 0; i < gTableSize; i++ ){
+        customWT[i] = malloc(sizeof(int) * ghistoryBits);
+      }
+      for(int i=0; i < gTableSize; i++) {
+        for(int j=0; j < ghistoryBits; j++) {
+          customWT[i][j] = 0; // Init weight to 0 
+        }
+      }
+
+      //set up threshold 
+      threshold = floor(1.93 * ghistoryBits + 14);
+
+      break;
+    }
     default:
       break;
   }
@@ -154,6 +182,28 @@ uint8_t tournament_predict(uint32_t pc){
     return selectResult ==SELECTG ? globalResult : localResult;
 }
 
+uint8_t custom_predict(uint32_t pc){
+  // Get the index into the weight table
+  uint32_t index = (gHistory ^ pc) & ((1 << ghistoryBits) - 1);
+  // weight vector of this histroy pattern 
+  // int32_t * weight_vector = &customWT[index];
+  y = 1; //training result + bias weight = 1
+  uint32_t the_history = gHistory;
+
+  for(int j=0; j < ghistoryBits; j++) {
+    if (the_history & 0x01){
+      // printf("1 \n");
+      y += customWT[index][j] * 1;
+    }else{
+      // printf("0 \n");
+      y += customWT[index][j] * -1;
+    }
+    the_history = the_history >> 1;
+  }
+
+  return (y < 0) ? 0 : 1;
+}
+
 // Make a prediction for conditional branch instruction at PC 'pc'
 // Returning TAKEN indicates a prediction of taken; returning NOTTAKEN
 // indicates a prediction of not taken
@@ -180,6 +230,7 @@ make_prediction(uint32_t pc)
   case TOURNAMENT:
     return tournament_predict(pc);
   case CUSTOM:
+    return custom_predict(pc);
   default:
     break;
   }
@@ -267,6 +318,27 @@ void train_predictor(uint32_t pc, uint8_t outcome)
           *p_choice += 1; 
         }
       }
+      break;
+    }
+    case CUSTOM:{
+      uint8_t result = (y < 0) ? 0 : 1;
+      if (result != outcome || abs(y) <= threshold){
+        uint32_t index = (gHistory ^ pc) & ((1 << ghistoryBits) - 1);
+        uint32_t the_history = gHistory;
+        for(int j=0; j < ghistoryBits; j++) {
+          if (the_history & 0x01){
+            customWT[index][j] += 1;
+          }else{
+            customWT[index][j] -= 1;
+          }
+          the_history = the_history >> 1;
+        }
+
+      }
+      gHistory <<= 1;
+      // add put the new history to the least significant bit
+      gHistory += outcome;
+
       break;
     }
     default:
