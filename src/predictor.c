@@ -196,7 +196,7 @@ uint8_t custom_predict(uint32_t pc){
       y += customWT[index][j] * 1;
     }else{
       // printf("0 \n");
-      y += customWT[index][j] * -1;
+      y += customWT[index][j] * 0;
     }
     the_history = the_history >> 1;
   }
@@ -326,7 +326,7 @@ void train_predictor(uint32_t pc, uint8_t outcome)
         uint32_t index = (gHistory ^ pc) & ((1 << ghistoryBits) - 1);
         uint32_t the_history = gHistory;
         for(int j=0; j < ghistoryBits; j++) {
-          if (the_history & 0x01){
+          if (the_history & outcome){
             customWT[index][j] += 1;
           }else{
             customWT[index][j] -= 1;
